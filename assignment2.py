@@ -20,15 +20,15 @@ import joblib
 train_url = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3.csv"
 train_df = pd.read_csv(train_url)
 
-# Preprocessing
+# Define target and features
 y = train_df["meal"]
 X = train_df.drop(columns=["meal", "id", "DateTime"], errors="ignore")
 X = pd.get_dummies(X, drop_first=True)
 
-# Split for validation (to compute accuracy)
+# Split for validation
 X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Define and train model
+# Define and train the model
 model = XGBClassifier(
     n_estimators=100,
     max_depth=8,
@@ -40,33 +40,35 @@ model = XGBClassifier(
 )
 modelFit = model.fit(X_train, y_train)
 
-# Evaluate accuracy
+# Validation accuracy
 val_preds = model.predict(X_val)
-val_preds = list(map(int, val_preds))
+val_preds = [int(p.item()) if hasattr(p, 'item') else int(p) for p in val_preds]
 val_accuracy = accuracy_score(y_val, val_preds)
 print(f"Validation Accuracy: {val_accuracy:.2f}")
 
 # Retrain on full data
 modelFit = model.fit(X, y)
 
-# Save the model
+# Save the trained model
 joblib.dump(modelFit, "modelFit.pkl")
 
 # Load test data
 test_url = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3test.csv"
 test_df = pd.read_csv(test_url)
+
+# Preprocess test data
 test_features = test_df.drop(columns=["id", "DateTime"], errors="ignore")
 test_features = pd.get_dummies(test_features, drop_first=True)
 test_features = test_features.reindex(columns=X.columns, fill_value=0)
 
-# Ensure 744 predictions
+# Ensure test set has exactly 744 rows
 test_features = test_features.iloc[:744]
 
-# Predict
-pred = modelFit.predict(test_features)
-pred = list(map(int, pred))  # Ensure Python ints
+# Predict and ensure correct format (plain Python ints in a list)
+raw_pred = modelFit.predict(test_features)
+pred = [int(p.item()) if hasattr(p, 'item') else int(p) for p in raw_pred]
 
-# Save predictions
+# Save predictions to CSV
 pd.DataFrame(pred, columns=["meal_prediction"]).to_csv("predictions.csv", index=False)
 
 # Sample output
