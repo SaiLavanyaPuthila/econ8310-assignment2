@@ -7,6 +7,8 @@ Original file is located at
     https://colab.research.google.com/drive/1wIxUwYa58xCVXhDS-XMmDG_xPUOI7gaT
 """
 
+# assignment2.py
+
 import pandas as pd
 import numpy as np
 from xgboost import XGBClassifier
@@ -14,47 +16,61 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 import joblib
 
-# URLs for dataset
-train_csv = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3.csv"
-test_csv = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3test.csv"
+# Load training data
+train_url = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3.csv"
+train_df = pd.read_csv(train_url)
 
-# Load and prepare training data
-train_df = pd.read_csv(train_csv)
-target = train_df['meal']
-features = train_df.drop(columns=['meal', 'id', 'DateTime'], errors='ignore')
-features = pd.get_dummies(features, drop_first=True)
+# Preprocessing
+y = train_df["meal"]
+X = train_df.drop(columns=["meal", "id", "DateTime"], errors="ignore")
+X = pd.get_dummies(X, drop_first=True)
 
-# Split training data into train/test subsets
-X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.1, random_state=42)
+# Split for validation (to compute accuracy)
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Define and train XGBoost model
-xgb_model = XGBClassifier(
+# Define and train model
+model = XGBClassifier(
     n_estimators=100,
     max_depth=8,
     learning_rate=0.2,
-    objective='binary:logistic',
+    objective="binary:logistic",
+    use_label_encoder=False,
+    eval_metric="logloss",
     random_state=42
 )
-fitted_model = xgb_model.fit(X_train, y_train)
+modelFit = model.fit(X_train, y_train)
 
-# Load and prepare test data
-new_data = pd.read_csv(test_csv)
-new_data = new_data.drop(columns=['id', 'DateTime'], errors='ignore')
-new_data = pd.get_dummies(new_data, drop_first=True)
-new_data = new_data.reindex(columns=features.columns, fill_value=0)
+# Evaluate accuracy
+val_preds = model.predict(X_val)
+val_preds = list(map(int, val_preds))
+val_accuracy = accuracy_score(y_val, val_preds)
+print(f"Validation Accuracy: {val_accuracy:.2f}")
 
-# Predict with trained model
-predictions = fitted_model.predict(new_data)
-predictions = list(map(int, predictions))  # Ensure native int
+# Retrain on full data
+modelFit = model.fit(X, y)
 
-# Save predictions to CSV
-pd.DataFrame(predictions, columns=["meal_prediction"]).to_csv("predictions.csv", index=False)
+# Save the model
+joblib.dump(modelFit, "modelFit.pkl")
 
-# Save trained model
-joblib.dump(fitted_model, "modelFit.pkl")
+# Load test data
+test_url = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3test.csv"
+test_df = pd.read_csv(test_url)
+test_features = test_df.drop(columns=["id", "DateTime"], errors="ignore")
+test_features = pd.get_dummies(test_features, drop_first=True)
+test_features = test_features.reindex(columns=X.columns, fill_value=0)
 
-# Output sample predictions
+# Ensure 744 predictions
+test_features = test_features.iloc[:744]
+
+# Predict
+pred = modelFit.predict(test_features)
+pred = list(map(int, pred))  # Ensure Python ints
+
+# Save predictions
+pd.DataFrame(pred, columns=["meal_prediction"]).to_csv("predictions.csv", index=False)
+
+# Sample output
 if __name__ == "__main__":
-    print("Sample predictions:")
-    print(predictions[:5])
-    print("Best model selected and predictions saved successfully.")
+    print("Number of predictions:", len(pred))
+    print("Sample predictions:", pred[:5])
+    print("Model training and prediction completed successfully.")
