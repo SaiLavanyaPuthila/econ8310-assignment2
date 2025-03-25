@@ -64,15 +64,26 @@ test_features = test_features.reindex(columns=X.columns, fill_value=0)
 # Ensure test set has exactly 744 rows
 test_features = test_features.iloc[:744]
 
-# Predict and ensure correct format (plain Python ints in a list)
+# Predict and convert to clean list of native Python ints or floats
 raw_pred = modelFit.predict(test_features)
-pred = [int(p.item()) if hasattr(p, 'item') else int(p) for p in raw_pred]
 
-# Save predictions to CSV
+pred = []
+for p in raw_pred:
+    if isinstance(p, (np.integer, np.int64, np.int32)):
+        pred.append(int(p))
+    elif isinstance(p, (np.floating, np.float64, np.float32)):
+        pred.append(float(p))
+    else:
+        pred.append(int(p))  # fallback just in case
+
+# Optional debug (can comment these out)
+print("Number of predictions:", len(pred))
+print("First 5 predictions:", pred[:5])
+print("Prediction data types:", set(type(p) for p in pred))
+
+# Save predictions
 pd.DataFrame(pred, columns=["meal_prediction"]).to_csv("predictions.csv", index=False)
 
-# Sample output
+# Final message
 if __name__ == "__main__":
-    print("Number of predictions:", len(pred))
-    print("Sample predictions:", pred[:5])
     print("Model training and prediction completed successfully.")
