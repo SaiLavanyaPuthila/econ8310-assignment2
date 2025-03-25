@@ -7,55 +7,54 @@ Original file is located at
     https://colab.research.google.com/drive/1wIxUwYa58xCVXhDS-XMmDG_xPUOI7gaT
 """
 
-# Import necessary libraries
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
+import numpy as np
+from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+import joblib
 
-# Step 1: Load training data
-url_train = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3.csv"
-train_data = pd.read_csv(url_train)
+# URLs for dataset
+train_csv = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3.csv"
+test_csv = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3test.csv"
 
-# Step 2: Prepare the data
-X = train_data.drop(columns=["meal"])
-y = train_data["meal"]
+# Load and prepare training data
+train_df = pd.read_csv(train_csv)
+target = train_df['meal']
+features = train_df.drop(columns=['meal', 'id', 'DateTime'], errors='ignore')
+features = pd.get_dummies(features, drop_first=True)
 
-# Identify and drop or encode non-numeric columns
-# Get a list of columns with non-numeric data types
-non_numeric_cols = X.select_dtypes(exclude=['number']).columns
+# Split training data into train/test subsets
+X_train, X_test, y_train, y_test = train_test_split(features, target, test_size=0.1, random_state=42)
 
-# Drop non-numeric columns
-X = X.drop(columns=non_numeric_cols)
+# Define and train XGBoost model
+xgb_model = XGBClassifier(
+    n_estimators=100,
+    max_depth=8,
+    learning_rate=0.2,
+    objective='binary:logistic',
+    random_state=42
+)
+fitted_model = xgb_model.fit(X_train, y_train)
 
+# Load and prepare test data
+new_data = pd.read_csv(test_csv)
+new_data = new_data.drop(columns=['id', 'DateTime'], errors='ignore')
+new_data = pd.get_dummies(new_data, drop_first=True)
+new_data = new_data.reindex(columns=features.columns, fill_value=0)
 
-# Fill or handle missing values in numeric columns
-X = X.fillna(0)
+# Predict with trained model
+predictions = fitted_model.predict(new_data)
+predictions = list(map(int, predictions))  # Ensure native int
 
-# Step 3: Define the model
-from sklearn.ensemble import RandomForestClassifier
-model = RandomForestClassifier(random_state=42)
+# Save predictions to CSV
+pd.DataFrame(predictions, columns=["meal_prediction"]).to_csv("predictions.csv", index=False)
 
-# Step 4: Fit the model on training data
-modelFit = model.fit(X, y)
+# Save trained model
+joblib.dump(fitted_model, "modelFit.pkl")
 
-# Step 5: Load test data
-url_test = "https://github.com/dustywhite7/Econ8310/raw/master/AssignmentData/assignment3test.csv"
-test_data = pd.read_csv(url_test)
-
-# Step 6: Prepare the test data (fill missing values just like training)
-
-test_data = test_data.drop(columns=['meal', *non_numeric_cols])
-
-test_data = test_data.fillna(0) # Fill missing values
-
-
-# Step 7: Make predictions (binary values: 1 for meal, 0 for not meal)
-pred = modelFit.predict(test_data)
-
-# Step 8: Convert to a list if needed
-pred = list(pred)
-
-# Display result summary
-print("Number of predictions:", len(pred))
-print("Sample predictions:", pred[:10])
+# Output sample predictions
+if __name__ == "__main__":
+    print("Sample predictions:")
+    print(predictions[:5])
+    print("Best model selected and predictions saved successfully.")
