@@ -7,8 +7,6 @@ Original file is located at
     https://colab.research.google.com/drive/1wIxUwYa58xCVXhDS-XMmDG_xPUOI7gaT
 """
 
-# assignment2.py
-
 import pandas as pd
 import numpy as np
 from xgboost import XGBClassifier
@@ -61,12 +59,10 @@ test_features = test_df.drop(columns=["id", "DateTime"], errors="ignore")
 test_features = pd.get_dummies(test_features, drop_first=True)
 test_features = test_features.reindex(columns=X.columns, fill_value=0)
 
-# Ensure test set has exactly 744 rows
-test_features = test_features.iloc[:744]
-
-# Predict and convert to clean list of native Python ints or floats
+# Predict for full test set (expected 1000 rows)
 raw_pred = modelFit.predict(test_features)
 
+# Convert predictions to native Python int or float
 pred = []
 for p in raw_pred:
     if isinstance(p, (np.integer, np.int64, np.int32)):
@@ -74,9 +70,9 @@ for p in raw_pred:
     elif isinstance(p, (np.floating, np.float64, np.float32)):
         pred.append(float(p))
     else:
-        pred.append(int(p))  # fallback just in case
+        pred.append(int(p))  # fallback
 
-# Optional debug (can comment these out)
+# Debug info (optional)
 print("Number of predictions:", len(pred))
 print("First 5 predictions:", pred[:5])
 print("Prediction data types:", set(type(p) for p in pred))
@@ -84,6 +80,6 @@ print("Prediction data types:", set(type(p) for p in pred))
 # Save predictions
 pd.DataFrame(pred, columns=["meal_prediction"]).to_csv("predictions.csv", index=False)
 
-# Final message
+# Final confirmation
 if __name__ == "__main__":
     print("Model training and prediction completed successfully.")
